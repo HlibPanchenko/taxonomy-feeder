@@ -2,7 +2,7 @@
 /*
 Plugin Name: Taxonomy Feeder
 Description: Import taxonomy terms from Google Sheets into WordPress.
-Version: 1.0.2
+Version: 1.0.1
 Author: Petr
 */
 
