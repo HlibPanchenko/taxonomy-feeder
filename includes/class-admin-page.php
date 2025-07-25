@@ -48,6 +48,28 @@ class Taxonomy_Feeder_Admin {
                     </label>
                 </p>
 
+                <p>
+                    <label>
+                        <input type="checkbox" name="multilang" value="1" id="multilang-checkbox"> Import for second language (WPML)
+                    </label>
+                </p>
+
+                <p id="lang-field" style="display:none;">
+                    <label>Language code:</label><br>
+                    <input type="text" name="lang_code" placeholder="uk" style="width:80px">
+                    <small>Example: en, uk, ru</small>
+                </p>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const checkbox = document.getElementById('multilang-checkbox');
+                        const langField = document.getElementById('lang-field');
+                        checkbox.addEventListener('change', function() {
+                            langField.style.display = checkbox.checked ? 'block' : 'none';
+                        });
+                    });
+                </script>
+
                 <?php submit_button('Import Taxonomies'); ?>
             </form>
         </div>
@@ -55,14 +77,23 @@ class Taxonomy_Feeder_Admin {
     }
 
     public function show_admin_notice() {
-        if (isset($_GET['status'])) {
-            if ($_GET['status'] === 'success') {
+        if (!current_user_can('manage_options')) return;
+
+        if (!isset($_GET['status'])) return;
+
+        switch ($_GET['status']) {
+            case 'success':
                 echo '<div class="notice notice-success is-dismissible"><p>✅ Taxonomies imported successfully!</p></div>';
-            } elseif ($_GET['status'] === 'fail') {
+                break;
+            case 'fail':
                 echo '<div class="notice notice-error is-dismissible"><p>❌ Import failed. Check Google Sheet URL and taxonomy name.</p></div>';
-            } elseif ($_GET['status'] === 'error') {
+                break;
+            case 'error':
                 echo '<div class="notice notice-warning is-dismissible"><p>⚠️ Please fill in all fields.</p></div>';
-            }
+                break;
+            case 'lang_missing':
+                echo '<div class="notice notice-warning is-dismissible"><p>⚠️ Language code is required for WPML import.</p></div>';
+                break;
         }
     }
 }
