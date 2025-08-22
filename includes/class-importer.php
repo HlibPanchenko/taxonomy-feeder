@@ -38,45 +38,76 @@ class Taxonomy_Feeder_Importer {
             $headers[] = !empty($col['label']) ? $col['label'] : "Column_$index";
         }
 
+        $this->enable_rich_term_html();
+
         foreach ($rows as $row) {
             $rowData = [];
             foreach ($row['c'] as $index => $cell) {
                 $rowData[$headers[$index]] = $cell['v'] ?? null;
             }
 
-            $term_name         = trim($rowData['Column_0'] ?? '');
-            $new_description   = trim($rowData['Column_4'] ?? '');
-            $new_meta_title    = trim($rowData['Column_5'] ?? '');
-            $new_meta_description = trim($rowData['Column_6'] ?? '');
-            $new_term_title    = trim($rowData['Column_7'] ?? '');
+            $term_name           = trim($rowData['Column_0'] ?? '');
+            $new_description_raw = trim($rowData['Column_4'] ?? '');
+            $new_meta_title      = trim($rowData['Column_5'] ?? '');
+            $new_meta_description= trim($rowData['Column_6'] ?? '');
+            $new_term_title      = trim($rowData['Column_7'] ?? '');
 
             if (!$term_name) continue;
+
+            $new_description = wp_kses_post( html_entity_decode( $new_description_raw ) );
 
             $existing_term = term_exists($term_name, $taxonomy_name);
 
             if (!$existing_term) {
-                $new_term = wp_insert_term($term_name, $taxonomy_name, ['description' => $new_description]);
+                $new_term = wp_insert_term($term_name, $taxonomy_name, [
+                    'description' => $new_description,
+                ]);
                 if (!is_wp_error($new_term)) {
                     $term_id = $new_term['term_id'];
                     if ($import_meta) {
                         update_term_meta($term_id, 'rank_math_title', $new_meta_title);
                         update_term_meta($term_id, 'rank_math_description', $new_meta_description);
-                        update_field('term_title', $new_term_title, "term_$term_id");
+                        if (function_exists('update_field')) {
+                            update_field('term_title', $new_term_title, "term_$term_id");
+                        }
                     }
                 }
             } else {
                 $term_id = $existing_term['term_id'];
                 if ($overwrite_description) {
-                    wp_update_term($term_id, $taxonomy_name, ['description' => $new_description]);
+                    wp_update_term($term_id, $taxonomy_name, [
+                        'description' => $new_description,
+                    ]);
                 }
                 if ($import_meta && $overwrite_description) {
                     update_term_meta($term_id, 'rank_math_title', $new_meta_title);
                     update_term_meta($term_id, 'rank_math_description', $new_meta_description);
-                    update_field('term_title', $new_term_title, "term_$term_id");
+                    if (function_exists('update_field')) {
+                        update_field('term_title', $new_term_title, "term_$term_id");
+                    }
                 }
             }
         }
 
+        $this->restore_default_term_html_policy();
+
         return true;
     }
+
+    private function enable_rich_term_html() {
+        remove_filter('pre_term_description', 'wp_filter_kses');
+        remove_filter('term_description',   'wp_kses_data');
+
+        add_filter('pre_term_description', 'wp_kses_post');
+        add_filter('term_description',     'wp_kses_post');
+    }
+
+    private function restore_default_term_html_policy() {
+        remove_filter('pre_term_description', 'wp_kses_post');
+        remove_filter('term_description',     'wp_kses_post');
+
+        add_filter('pre_term_description', 'wp_filter_kses');
+        add_filter('term_description',     'wp_kses_data');
+    }
+
 }
